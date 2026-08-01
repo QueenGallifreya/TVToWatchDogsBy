@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+  <title>Watch History Tracker</title>
+  
+  <!-- PWA Headers -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#e50914">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Watch Tracker">
+  <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3172/3172522.png">
+
+  <style>
+    :root {
+      --bg: #121212;
+      --card: #1e1e1e;
+      --accent: #e50914;
+      --text: #ffffff;
+      --muted: #a0a0a0;
+      --border: #333333;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 20px;
+      padding-top: max(20px, env(safe-area-inset-top));
+    }
+
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      color: var(--accent);
+      margin-bottom: 20px;
+    }
+
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+
+    .flex-row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    input, select, button {
+      background: #2b2b2b;
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 10px 14px;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+
+    button {
+      background: var(--accent);
+      color: white;
+      border: none;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    button.secondary { background: #333; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+    }
+
+    th, td {
+      text-align: left;
+      padding: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    th {
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+
+    .tag {
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: bold;
+    }
+
+    .tag.movie { background: #1a365d; color: #63b3ed; }
+    .tag.tv { background: #22543d; color: #68d391; }
+
+    .stats {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+
+    .stat-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      padding: 15px 20px;
+      border-radius: 8px;
+      flex: 1;
+    }
+
+    .stat-val {
+      font-size: 24px;
+      font-weight: bold;
+      color: var(--accent);
+    }
+
+    .stat-lbl {
+      color: var(--muted);
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h1>🍿 Media Watch History</h1>
+
+  <div class="stats">
+    <div class="stat-card">
+      <div class="stat-val" id="stat-total">0</div>
+      <div class="stat-lbl">Total Watched</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val" id="stat-movies">0</div>
+      <div class="stat-lbl">Movies</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val" id="stat-tv">0</div>
+      <div class="stat-lbl">TV Shows</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3>Import & Controls</h3>
+    <div class="flex-row">
+      <label>
+        <strong>Upload CSV:</strong>
+        <input type="file" id="csv-input" accept=".csv" />
+      </label>
+      <button class="secondary" onclick="clearData()">Clear All Data</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3>Add New Entry</h3>
+    <form id="add-form" class="flex-row">
+      <input type="text" id="add-title" placeholder="Title" required style="flex:2;" />
+      <select id="add-type">
+        <option value="Movie">Movie</option>
+        <option value="TV Show">TV Show</option>
+      </select>
+      <input type="number" id="add-year" placeholder="Year" style="width: 80px;" />
+      <input type="date" id="add-date" />
+      <input type="number" id="add-rating" min="1" max="10" placeholder="Rating (1-10)" style="width: 110px;" />
+      <button type="submit">Add Item</button>
+    </form>
+  </div>
+
+  <div class="panel">
+    <div class="flex-row" style="justify-content: space-between;">
+      <input type="text" id="search-input" placeholder="Search title..." style="width: 250px;" oninput="renderTable()" />
+      <select id="filter-type" onchange="renderTable()">
+        <option value="All">All Types</option>
+        <option value="Movie">Movies Only</option>
+        <option value="TV Show">TV Shows Only</option>
+      </select>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Title</th>
+          <th>Type</th>
+          <th>Year</th>
+          <th>Date Watched</th>
+          <th>Rating</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="table-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js')
+        .then(reg => console.log('Service Worker registered!'))
+        .catch(err => console.log('Service Worker failed:', err));
+    });
+  }
+
+  let watchList = JSON.parse(localStorage.getItem('watchList')) || [];
+
+  document.addEventListener('DOMContentLoaded', () => {
+    renderTable();
+    document.getElementById('csv-input').addEventListener('change', handleCSVUpload);
+
+    document.getElementById('add-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const newItem = {
+        id: Date.now(),
+        title: document.getElementById('add-title').value,
+        type: document.getElementById('add-type').value,
+        year: document.getElementById('add-year').value || '-',
+        date: document.getElementById('add-date').value || '-',
+        rating: document.getElementById('add-rating').value || '-'
+      };
+      watchList.unshift(newItem);
+      saveAndRender();
+      document.getElementById('add-form').reset();
+    });
+  });
+
+  function saveAndRender() {
+    localStorage.setItem('watchList', JSON.stringify(watchList));
+    renderTable();
+  }
+
+  function deleteItem(id) {
+    watchList = watchList.filter(item => item.id !== id);
+    saveAndRender();
+  }
+
+  function clearData() {
+    if (confirm("Are you sure you want to clear your entire watch history?")) {
+      watchList = [];
+      saveAndRender();
+    }
+  }
+
+  function handleCSVUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(evt) {
+      const lines = evt.target.result.split('\n');
+      if (lines.length <= 1) return;
+
+      const headers = lines[0].toLowerCase().split(',').map(h => h.trim().replace(/"/g, ''));
+      const titleIdx = headers.findIndex(h => h.includes('title') || h.includes('name') || h.includes('show')) ?? 0;
+      const typeIdx = headers.findIndex(h => h.includes('type')) ?? -1;
+      const yearIdx = headers.findIndex(h => h.includes('year')) ?? -1;
+      const dateIdx = headers.findIndex(h => h.includes('date') || h.includes('time') || h.includes('watched')) ?? -1;
+      const ratingIdx = headers.findIndex(h => h.includes('rating') || h.includes('score')) ?? -1;
+
+      const newEntries = [];
+
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+        const row = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(cell => cell.trim().replace(/^"|"$/g, ''));
+
+        newEntries.push({
+          id: Date.now() + i,
+          title: row[titleIdx] || 'Unknown',
+          type: typeIdx !== -1 && row[typeIdx] ? row[typeIdx] : 'TV Show',
+          year: yearIdx !== -1 && row[yearIdx] ? row[yearIdx] : '-',
+          date: dateIdx !== -1 && row[dateIdx] ? row[dateIdx] : '-',
+          rating: ratingIdx !== -1 && row[ratingIdx] ? row[ratingIdx] : '-'
+        });
+      }
+
+      watchList = [...newEntries, ...watchList];
+      saveAndRender();
+      alert(`Successfully imported ${newEntries.length} entries!`);
+    };
+    reader.readAsText(file);
+  }
+
+  function renderTable() {
+    const tbody = document.getElementById('table-body');
+    const searchVal = document.getElementById('search-input').value.toLowerCase();
+    const typeVal = document.getElementById('filter-type').value;
+
+    tbody.innerHTML = '';
+    let movieCount = 0;
+    let tvCount = 0;
+
+    const filtered = watchList.filter(item => {
+      if (item.type.toLowerCase().includes('tv') || item.type.toLowerCase().includes('show')) tvCount++;
+      else movieCount++;
+
+      const matchesSearch = item.title.toLowerCase().includes(searchVal);
+      const matchesType = typeVal === 'All' || 
+        (typeVal === 'Movie' && !item.type.toLowerCase().includes('tv')) ||
+        (typeVal === 'TV Show' && (item.type.toLowerCase().includes('tv') || item.type.toLowerCase().includes('show')));
+
+      return matchesSearch && matchesType;
+    });
+
+    document.getElementById('stat-total').innerText = watchList.length;
+    document.getElementById('stat-movies').innerText = movieCount;
+    document.getElementById('stat-tv').innerText = tvCount;
+
+    filtered.forEach(item => {
+      const isTV = item.type.toLowerCase().includes('tv') || item.type.toLowerCase().includes('show');
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><strong>${item.title}</strong></td>
+        <td><span class="tag ${isTV ? 'tv' : 'movie'}">${isTV ? 'TV Show' : 'Movie'}</span></td>
+        <td>${item.year}</td>
+        <td>${item.date}</td>
+        <td>${item.rating != '-' ? item.rating + '/10' : '-'}</td>
+        <td><button class="secondary" style="padding: 4px 8px; font-size: 11px;" onclick="deleteItem(${item.id})">Delete</button></td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    if (filtered.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color: var(--muted);">No entries found.</td></tr>`;
+    }
+  }
+</script>
+</body>
+</html>
