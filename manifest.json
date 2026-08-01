@@ -1,0 +1,22 @@
+{
+  "name": "Watch History Tracker",
+  "short_name": "Watch Tracker",
+  "description": "Track movies and TV history with CSV import support.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#121212",
+  "theme_color": "#e50914",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3172/3172522.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3172/3172522.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
